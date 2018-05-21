@@ -1,4 +1,4 @@
-package com.allensnape.tc.config;
+package com.allensnape.tc.config.pcl;
 
 import java.io.File;
 import java.lang.annotation.Annotation;
@@ -20,16 +20,10 @@ import org.dom4j.Document;
 import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationListener;
-import org.springframework.context.event.ContextRefreshedEvent;
-import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.RequestMethod;
 
-/* <bean id="readConfigBean" class="config.ReadConfig"></bean> */
-
-@Component
 @SuppressWarnings({"unchecked", "rawtypes"})
-public class ReadConfig implements ApplicationListener<ContextRefreshedEvent> {
+public class ReadConfig {
 	
 	private static String[] configPaths = new String[]{
 		"/config/webservice/loanCenter-servlet.xml"
@@ -53,14 +47,11 @@ public class ReadConfig implements ApplicationListener<ContextRefreshedEvent> {
 		ANNO_TO_METHOD.put(AVAILABLE_REQ_METHOD_ANNOS[4], RequestMethod.PUT);
 		ANNO_TO_METHOD.put(AVAILABLE_REQ_METHOD_ANNOS[5], RequestMethod.HEAD);
 	}
-
-	@Override
-	public void onApplicationEvent(ContextRefreshedEvent event) {
+	
+	public ReadConfig(ApplicationContext ap) {
 		// 获取到的地址
 		List<RequestHandler> handlers = new ArrayList<>();
-		
-		System.out.println(getClass().getResource("/"));
-		
+		// 获取当前classloader加载的路径
 		String folderString = getClass().getResource("/").toString().substring(5);
 		
 		// 实例化xml读取器
@@ -69,7 +60,9 @@ public class ReadConfig implements ApplicationListener<ContextRefreshedEvent> {
 		// 循环配置路径
 		for (String configPathString : configPaths) {
 			try {
-				Document document = reader.read(new File(folderString + configPathString));
+				File configFile = new File(folderString + configPathString);
+				if (!configFile.exists()) continue;
+				Document document = reader.read(configFile);
 			    Element beans = document.getRootElement();
 				List<Element> servers = beans.elements("server");
 				
@@ -82,25 +75,32 @@ public class ReadConfig implements ApplicationListener<ContextRefreshedEvent> {
 					System.out.println(beanNameString);
 					
 					// 根据beanid获取bean的class
-					Class bean = this.getClass(beans, event.getApplicationContext(), beanNameString);
+					Class bean = this.getClass(beans, ap, beanNameString);
 					if (bean == null) continue;
 					try {
 						// pis = parent interfaces
 						Class[] pis = bean.getInterfaces();
 						for (Class pi : pis) {
+							// 获取接口函数
 							Method[] methods = pi.getDeclaredMethods();
+							// 遍历函数
 							for (Method method : methods) {
+								// 判断是否被注解了Path, 没有注解的就不是请求应用的函数
 								if (!this.hasPathAnno(method)) continue;
+								// 声明实例, 用于保存数据
 								RequestHandler rhHandler = new RequestHandler();
 								rhHandler.setHandler(method);
 								List<RequestMethod> rmethodsList = new ArrayList<>();
+								// 获取该函数的其他注解, 获取到请求地址以及请求方式
 								Annotation[] annos = method.getAnnotations();
 								for (Annotation anno : annos) {
+									// 获取请求地址
 									if (anno instanceof Path) {
 										rhHandler.setUri(addressPrefix + ((Path)anno).value());
 										continue;
 									}
 									
+									// 获取请求方式(GET, POST, ...)
 									for (Class rmac : AVAILABLE_REQ_METHOD_ANNOS) {
 										if (anno.annotationType() == rmac) {
 											rmethodsList.add(ANNO_TO_METHOD.get(rmac));
@@ -108,6 +108,8 @@ public class ReadConfig implements ApplicationListener<ContextRefreshedEvent> {
 										}
 									}
 								}
+								
+								// 转换List到对应类型的数组
 								RequestMethod[] rmsMethods = new RequestMethod[rmethodsList.size()];
 								for (int i = 0; i < rmethodsList.size(); i++) {
 									rmsMethods[i] = rmethodsList.get(i);
@@ -125,6 +127,7 @@ public class ReadConfig implements ApplicationListener<ContextRefreshedEvent> {
 			}
 		}
 		
+		// 拼接一个输出内容
 		StringBuffer handlersJSON = new StringBuffer("[");
 		for (RequestHandler rh : handlers) {
 			StringBuffer s = new StringBuffer();
@@ -143,6 +146,13 @@ public class ReadConfig implements ApplicationListener<ContextRefreshedEvent> {
 		System.out.println(handlersJSON.length() > 0 ? handlersJSON.substring(0, handlersJSON.length() - 1) + "]" : "");
 	}
 	
+	/**
+	 * 根据配置文件以及beanid获取spring的bean容器中对应的bean的Class
+	 * @param beansDom		Spring的XML配置文件
+	 * @param appCon		ApplicationContext
+	 * @param id			bean的id
+	 * @return
+	 */
 	private Class getClass(Element beansDom, ApplicationContext appCon, String id) {
 		List<Element> beans = beansDom.elements("bean");
 		for (Element bean : beans) {
@@ -157,6 +167,11 @@ public class ReadConfig implements ApplicationListener<ContextRefreshedEvent> {
 		return null;
 	}
 
+	/**
+	 * 判断函数是否被注解了Path
+	 * @param handler
+	 * @return
+	 */
 	private boolean hasPathAnno(Method handler) {
 		Annotation[] annos = handler.getAnnotations();
 		for (Annotation anno : annos) {

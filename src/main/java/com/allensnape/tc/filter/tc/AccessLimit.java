@@ -1,15 +1,15 @@
-package com.allensnape.tc.filter;
+package com.allensnape.tc.filter.tc;
 
 /**
- * 访问限制模型
+ * 璁块棶闄愬埗妯″瀷
  * @author AllenSnape
  */
 public class AccessLimit {
-	// 访问URI
+	// 璁块棶URI
 	private String uri;
-	// 时限
+	// 鏃堕檺
 	private Integer expire;
-	// 次数
+	// 娆℃暟
 	private Integer count;
 	
 	public String getUri() {

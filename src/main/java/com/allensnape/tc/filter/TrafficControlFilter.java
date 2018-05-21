@@ -1,8 +1,6 @@
 package com.allensnape.tc.filter;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -13,102 +11,52 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import net.sf.json.JSONObject;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.Transaction;
+import com.allensnape.tc.filter.tc.TrafficControl;
 
+/*
+<!-- è¿‡æ»¤å™¨ -->
+<filter>
+	<filter-name>trafficController</filter-name>
+	<filter-class>com.allensnape.tc.filter.TrafficControlFilter</filter-class>
+</filter>
+<filter-mapping>
+	<filter-name>trafficController</filter-name>
+	<url-pattern>/*</url-pattern>
+</filter-mapping>
+<!-- åªæœ‰æ·»åŠ è¿™ä¸ªä¹‹åæ‰èƒ½è§¦å‘å®ç°äº†ApplicationListener<ContextRefreshedEvent>çš„ç±»çš„äº‹ä»¶ -->
+<listener>
+	<listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+</listener>
+*/
+
+/**
+ * æµé‡æ§åˆ¶è¿‡æ»¤å™¨
+ * @author AllenSnape
+ */
 public class TrafficControlFilter implements Filter {
-
-	// ´æ·Å·ÃÎÊ´ÎÊıµÄkey
-	private static final String REDIS_KEY_PREFIX = "pcl_web_tc_";
-	// ´æ·Å·ÃÎÊ´ÎÊıÉèÖÃÊı¾İµÄkey, ÓÉÆäËû³ÌĞòĞ´ÈëredisµÄ
-	private static final String TABLE_REDIS_KEY_PREFIX = "table_pcl_web_tc_";
-
-	public void init(FilterConfig arg0) throws ServletException {
-		System.out.println("--ÏŞÁ÷¹ıÂËÆ÷³õÊ¼»¯Íê³É--");
+	
+	public void init(FilterConfig filterConfig) throws ServletException {
+		System.out.println("--æµæ§ç›‘å¬å™¨åˆå§‹åŒ–å®Œæˆ");
 	}
 
-	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
+	public void doFilter(ServletRequest req, ServletResponse res, FilterChain fc)
 			throws IOException, ServletException {
 		try {
-			Jedis j = RedisPool.getJedis();
-			try {
-				// »ñÈ¡URI
-				String URI = ((HttpServletRequest) arg0).getRequestURI();
-				// »ñÈ¡ÏŞÖÆÁĞ±í
-				List<AccessLimit> list = this.getAccessLimits(URI);
-				// Ñ­»·²éÑ¯ÊÇ·ñ³¬ÏŞ
-				for (AccessLimit al : list) {
-					// »ñÈ¡Ê±ÏŞ´ÎÊıÍ³¼Æ
-					String key = this.getRedisKey(al.getUri(), al.getExpire());
-					String count = j.get(key);
-					// ¼ì²é´ÎÊı
-					if (count == null) {
-						Transaction transaction = j.multi();
-			            transaction.incr(key);
-			            transaction.expire(key, al.getExpire());
-			            transaction.exec();
-					} else {
-						// ³¬³ö´ÎÊıÖ±½Ó·µ»Ø´íÎóĞÅÏ¢
-			            if(Integer.parseInt(count) >= al.getCount()){  
-			                // TODO ÉèÖÃ·µ»ØÊı¾İ
-			            	HttpServletResponse res = ((HttpServletResponse)arg1);
-			            	res.setCharacterEncoding("utf-8");
-			            	res.setContentType("Content-Type: application/json");
-			            	res.getWriter().write("{\"msg\": \"·ÃÎÊ¹ıÓÚÆµ·±!\"}");
-			            	return;
-			            } else {
-				            j.incr(key);
-			            }
-					}
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
-			} finally {
-				j.close();
+			// æµé‡æ§åˆ¶
+			if (!new TrafficControl().control((HttpServletRequest)req, (HttpServletResponse)res)) {
+				return;
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 
-		arg2.doFilter(arg0, arg1);
+		fc.doFilter(req, res);
 	}
 
 	public void destroy() {
-		System.out.println("--ÏŞÁ÷¹ıÂËÆ÷Ïú»ÙÍê³É--");
+		System.out.println("--é™æµè¿‡æ»¤å™¨é”€æ¯å®Œæˆ--");
 	}
 
-	/**
-	 * »ñÈ¡redisÖĞµÄkey
-	 * @param URI			»ñÈ¡keyµÄURI
-	 * @param expire		³¬Ê±Ê±¼ä(Ãë)
-	 * @return
-	 */
-	private String getRedisKey(String URI, int expire) {
-		return REDIS_KEY_PREFIX + URI + "_" + expire;
-	}
 
-	/**
-	 * »ñÈ¡uriÏŞÖÆÁĞ±í
-	 * @param URI
-	 * @return
-	 */
-	private List<AccessLimit> getAccessLimits(String URI) {
-		Jedis j = RedisPool.getJedis();
-		List<AccessLimit> list = new ArrayList<AccessLimit>();
-		// ´Óredis»ñÈ¡ÏŞÖÆÁĞ±í, ´æ·ÅµÄÊÇjson¸ñÊ½µÄÄÚÈİ: {"expire": 86400, "count": 10000}
-		List<String> jsons = j.lrange(TABLE_REDIS_KEY_PREFIX + URI, 0, -1);
-		for (String json : jsons) {
-			try {
-				AccessLimit al = (AccessLimit) JSONObject.toBean(JSONObject.fromObject(json), AccessLimit.class);
-				al.setUri(URI);
-				list.add(al);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
-		RedisPool.returnResource(j);
-		return list;
-	}
 	
 }

@@ -9,6 +9,11 @@
 		<welcome-file></welcome-file>
 	</welcome-file-list>
 
+	<context-param>
+		<param-name>contextConfigLocation</param-name>
+		<param-value>classpath:SpringContext.xml</param-value>
+	</context-param>
+
 	<!-- 过滤器 -->
 	<filter>
 		<filter-name>trafficController</filter-name>
@@ -32,11 +37,6 @@
 		<servlet-name>dispatcher</servlet-name>
 		<url-pattern>/*</url-pattern>
 	</servlet-mapping>
-
-	<context-param>
-		<param-name>contextConfigLocation</param-name>
-		<param-value>classpath:SpringContext.xml</param-value>
-	</context-param>
 
 	<listener>
 		<listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>

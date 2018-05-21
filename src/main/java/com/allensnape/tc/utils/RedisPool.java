@@ -1,40 +1,40 @@
-package com.allensnape.tc.filter;
+package com.allensnape.tc.utils;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
 public final class RedisPool {
-	// Redis·şÎñÆ÷IP
+	// RedisæœåŠ¡å™¨IP
 	private static String ADDR = "127.0.0.1";
-	// RedisµÄ¶Ë¿ÚºÅ
+	// Redisçš„ç«¯å£å·
 	private static Integer PORT = 6379;
-	// ·ÃÎÊÃÜÂë
+	// è®¿é—®å¯†ç 
 	private static String AUTH = null;
 
-	// ¿ÉÓÃÁ¬½ÓÊµÀıµÄ×î´óÊıÄ¿£¬Ä¬ÈÏÎª8£»
-	// Èç¹û¸³ÖµÎª-1£¬Ôò±íÊ¾²»ÏŞÖÆ£¬Èç¹ûpoolÒÑ¾­·ÖÅäÁËmaxActive¸öjedisÊµÀı£¬Ôò´ËÊ±poolµÄ×´Ì¬Îªexhausted(ºÄ¾¡)
+	// å¯ç”¨è¿æ¥å®ä¾‹çš„æœ€å¤§æ•°ç›®ï¼Œé»˜è®¤ä¸º8ï¼›
+	// å¦‚æœèµ‹å€¼ä¸º-1ï¼Œåˆ™è¡¨ç¤ºä¸é™åˆ¶ï¼Œå¦‚æœpoolå·²ç»åˆ†é…äº†maxActiveä¸ªjediså®ä¾‹ï¼Œåˆ™æ­¤æ—¶poolçš„çŠ¶æ€ä¸ºexhausted(è€—å°½)
 	private static Integer MAX_TOTAL = 1024;
-	// ¿ØÖÆÒ»¸öpool×î¶àÓĞ¶àÉÙ¸ö×´Ì¬Îªidle(¿ÕÏĞ)µÄjedisÊµÀı£¬Ä¬ÈÏÖµÊÇ8
+	// æ§åˆ¶ä¸€ä¸ªpoolæœ€å¤šæœ‰å¤šå°‘ä¸ªçŠ¶æ€ä¸ºidle(ç©ºé—²)çš„jediså®ä¾‹ï¼Œé»˜è®¤å€¼æ˜¯8
 	private static Integer MAX_IDLE = 200;
-	// µÈ´ı¿ÉÓÃÁ¬½ÓµÄ×î´óÊ±¼ä£¬µ¥Î»ÊÇºÁÃë£¬Ä¬ÈÏÖµÎª-1£¬±íÊ¾ÓÀ²»³¬Ê±¡£
-	// Èç¹û³¬¹ıµÈ´ıÊ±¼ä£¬ÔòÖ±½ÓÅ×³öJedisConnectionException
+	// ç­‰å¾…å¯ç”¨è¿æ¥çš„æœ€å¤§æ—¶é—´ï¼Œå•ä½æ˜¯æ¯«ç§’ï¼Œé»˜è®¤å€¼ä¸º-1ï¼Œè¡¨ç¤ºæ°¸ä¸è¶…æ—¶ã€‚
+	// å¦‚æœè¶…è¿‡ç­‰å¾…æ—¶é—´ï¼Œåˆ™ç›´æ¥æŠ›å‡ºJedisConnectionException
 	private static Integer MAX_WAIT_MILLIS = 10000;
 	private static Integer TIMEOUT = 10000;
-	// ÔÚborrow(ÓÃ)Ò»¸öjedisÊµÀıÊ±£¬ÊÇ·ñÌáÇ°½øĞĞvalidate(ÑéÖ¤)²Ù×÷£»
-	// Èç¹ûÎªtrue£¬ÔòµÃµ½µÄjedisÊµÀı¾ùÊÇ¿ÉÓÃµÄ
+	// åœ¨borrow(ç”¨)ä¸€ä¸ªjediså®ä¾‹æ—¶ï¼Œæ˜¯å¦æå‰è¿›è¡Œvalidate(éªŒè¯)æ“ä½œï¼›
+	// å¦‚æœä¸ºtrueï¼Œåˆ™å¾—åˆ°çš„jediså®ä¾‹å‡æ˜¯å¯ç”¨çš„
 	private static Boolean TEST_ON_BORROW = true;
 	private static JedisPool jedisPool = null;
 
 	/**
-	 * ¾²Ì¬¿é£¬³õÊ¼»¯RedisÁ¬½Ó³Ø
+	 * é™æ€å—ï¼Œåˆå§‹åŒ–Redisè¿æ¥æ± 
 	 */
 	static {
 		try {
 			JedisPoolConfig config = new JedisPoolConfig();
 			/*
-			 * ×¢Òâ: ÔÚ¸ß°æ±¾µÄjedis jar°ü, ±ÈÈç±¾°æ±¾2.9.0, JedisPoolConfigÃ»ÓĞsetMaxActiveºÍsetMaxWaitÊôĞÔÁË
-			 * ÕâÊÇÒòÎª¸ß°æ±¾ÖĞ¹Ù·½·ÏÆúÁË´Ë·½·¨, ÓÃÒÔÏÂÁ½¸öÊôĞÔÌæ»» maxActive ==> maxTotal maxWait==> maxWaitMillis
+			 * æ³¨æ„: åœ¨é«˜ç‰ˆæœ¬çš„jedis jaråŒ…, æ¯”å¦‚æœ¬ç‰ˆæœ¬2.9.0, JedisPoolConfigæ²¡æœ‰setMaxActiveå’ŒsetMaxWaitå±æ€§äº†
+			 * è¿™æ˜¯å› ä¸ºé«˜ç‰ˆæœ¬ä¸­å®˜æ–¹åºŸå¼ƒäº†æ­¤æ–¹æ³•, ç”¨ä»¥ä¸‹ä¸¤ä¸ªå±æ€§æ›¿æ¢ maxActive ==> maxTotal maxWait==> maxWaitMillis
 			 */
 			config.setMaxTotal(MAX_TOTAL);
 			config.setMaxIdle(MAX_IDLE);
@@ -48,7 +48,7 @@ public final class RedisPool {
 	}
 
 	/**
-	 * »ñÈ¡JedisÊµÀı
+	 * è·å–Jediså®ä¾‹
 	 * 
 	 * @return
 	 */
@@ -67,7 +67,7 @@ public final class RedisPool {
 	}
 
 	/**
-	 * »ØÊÕJedis¶ÔÏó×ÊÔ´
+	 * å›æ”¶Jediså¯¹è±¡èµ„æº
 	 * 
 	 * @param jedis
 	 */
@@ -78,7 +78,7 @@ public final class RedisPool {
 	}
 
 	/**
-	 * Jedis¶ÔÏó³öÒì³£µÄÊ±ºò£¬»ØÊÕJedis¶ÔÏó×ÊÔ´
+	 * Jediså¯¹è±¡å‡ºå¼‚å¸¸çš„æ—¶å€™ï¼Œå›æ”¶Jediså¯¹è±¡èµ„æº
 	 * 
 	 * @param jedis
 	 */

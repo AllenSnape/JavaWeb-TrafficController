@@ -9,10 +9,17 @@
             http://www.springframework.org/schema/mvc 
             http://www.springframework.org/schema/mvc/spring-mvc-3.1.xsd">
 
-	<!-- 搜索spring控件 -->
 	<mvc:annotation-driven />
 	<context:component-scan base-package="com.allensnape"></context:component-scan>
 
-	<bean id="readConfigBean" class="com.allensnape.tc.config.ReadConfig"></bean>
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource"
+		destroy-method="close">
+		<property name="driverClassName" value="oracle.jdbc.driver.OracleDriver" />
+		<property name="url" value="jdbc:oracle:thin:@221.236.20.222:15218/orcl" />
+		<property name="username" value="pcl" />
+		<property name="password" value="pcl" />
+	</bean>
+
+	<bean id="readConfigBean" class="com.allensnape.tc.config.SpringConfig"></bean>
 
 </beans>

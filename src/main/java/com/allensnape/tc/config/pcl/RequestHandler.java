@@ -1,4 +1,4 @@
-package com.allensnape.tc.config;
+package com.allensnape.tc.config.pcl;
 
 import java.lang.reflect.Method;
 
